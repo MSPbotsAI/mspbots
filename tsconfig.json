@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "module": "BaseNext",
+        "moduleResolution": "NodeNext",
+        "target": "ESNext",
+        "baseUrl": ".",
+        "paths": {
+            "openclaw/plugin-sdk": [
+                "./src/sdk-mocks.ts"
+            ],
+            "openclaw/plugin-sdk/*": [
+                "./src/sdk-mocks.ts"
+            ]
+        }
+    }
+}

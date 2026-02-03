@@ -1,0 +1,11 @@
+{
+    "id": "mspbots",
+    "channels": [
+        "mspbots"
+    ],
+    "configSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+    }
+}
