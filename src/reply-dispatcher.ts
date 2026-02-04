@@ -29,6 +29,8 @@ export function createMspBotsReplyDispatcher(params: CreateMspBotsReplyDispatche
         agentId,
     });
 
+    let messageSent = false;
+    
     const { dispatcher, replyOptions, markDispatchIdle } =
         core.channel.reply.createReplyDispatcherWithTyping({
             responsePrefix: prefixContext.responsePrefix,
@@ -40,7 +42,7 @@ export function createMspBotsReplyDispatcher(params: CreateMspBotsReplyDispatche
             
             deliver: async (payload: ReplyPayload) => {
                 const text = payload.text ?? "";
-                if (!text.trim()) return;
+                if (!text.trim() || messageSent) return;
 
                 params.runtime.log?.(`[MSPBots] delivering reply: ${text.slice(0, 50)}...`);
 
@@ -51,11 +53,15 @@ export function createMspBotsReplyDispatcher(params: CreateMspBotsReplyDispatche
                     mspBotsAgentId,
                     mspBotsAppId
                 });
+                
+                messageSent = true;
             },
             onError: (err: any, info: any) => {
                 params.runtime.error?.(`[MSPBots] ${info.kind} reply failed: ${String(err)}`);
             },
-            onIdle: () => {},
+            onIdle: () => {
+                messageSent = false;
+            },
         });
 
     return {
