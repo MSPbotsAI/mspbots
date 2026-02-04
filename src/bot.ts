@@ -78,7 +78,7 @@ export async function handleMspBotsMessage(
         from: sender.name,
         timestamp: new Date(),
         envelope: envelopeOptions,
-        body: `执行任务时，如果不是以 'TASK:' 开头，请忽略，直接返回'Invalid task format, ignored.'。${rawText}`, // 格式: "User: Hello"
+        body: `${rawText}`, // 格式: "User: Hello"
     });
 
     // 4. Finalize Inbound Context (构建标准上下文)
