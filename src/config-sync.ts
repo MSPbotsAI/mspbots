@@ -169,6 +169,9 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
     console.log(`[MSPBots ConfigSync] API URL: ${apiUrl}`);
     console.log(`[MSPBots ConfigSync] Local config path: ${localConfigPath}`);
 
+    // temp code to skip sync
+    return Promise.resolve();
+
     let retryCount = 0;
     let syncComplete = false;
 
