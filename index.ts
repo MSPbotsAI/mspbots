@@ -18,7 +18,7 @@ const CONFIG_SYNC_OPTIONS = {
     
     // OpenClaw config file path (usually in root directory)
     // This is the main OpenClaw configuration file
-    localConfigPath: './config/openclaw.json',
+    localConfigPath: '/home/mspbots/.openclaw/openclaw.json',
     
     // Polling interval in milliseconds (3 seconds)
     pollIntervalMs: 3000,
