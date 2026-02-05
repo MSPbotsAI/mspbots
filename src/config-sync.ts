@@ -284,7 +284,7 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
             continue;
         }
         
-        console.log('[MSPBots ConfigSync] Received valid config from server');
+        console.log('[MSPBots ConfigSync] Received valid config from server:', configData);
 
         
         // Check if configs are equal
