@@ -6,6 +6,7 @@ export interface SendMessageOptions {
     account?: ResolvedMspBotsAccount;
     mspBotsAgentId?: string;
     mspBotsAppId?: string;
+    taskId?: string;
 }
 
 /**
@@ -13,7 +14,7 @@ export interface SendMessageOptions {
  * 简化的发送逻辑：直接调用 API 发送文本
  */
 export async function sendMessageMspBots(options: SendMessageOptions): Promise<void> {
-    const { text, to, account, mspBotsAgentId, mspBotsAppId } = options;
+    const { text, to, account, mspBotsAgentId, mspBotsAppId, taskId } = options;
     console.log(`[MSPBots] Sending message to ${to}: ${text}`);
 
     // Determine API URL
@@ -30,12 +31,12 @@ export async function sendMessageMspBots(options: SendMessageOptions): Promise<v
             baseUrl = baseUrl.slice(0, -1);
         }
         apiUrl = `${baseUrl}/apps/mb-platform-agent/api/chat/receive`;
+    } else {
+        console.error("[MSPBots] No root URL provided for account:", account?.accountId);
+        return;
     }
 
-    // Fallback
-    if (!apiUrl) {
-         apiUrl = "http://192.168.1.39:8000/apps/mb-platform-agent/api/chat/receive";
-    }
+
 
     // Determine Token & IDs
     const token = account?.accesstoken || account?.token;
@@ -55,6 +56,7 @@ export async function sendMessageMspBots(options: SendMessageOptions): Promise<v
             appId: appId,
             agentId: agentId,
             userId: to,
+            taskId: taskId,
             accessToken: token,
             data: {
                 content: text

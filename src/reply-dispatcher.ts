@@ -18,18 +18,18 @@ export type CreateMspBotsReplyDispatcherParams = {
     account?: ResolvedMspBotsAccount;
     mspBotsAgentId?: string;
     mspBotsAppId?: string;
+    taskId?: string;
 };
 
 export function createMspBotsReplyDispatcher(params: CreateMspBotsReplyDispatcherParams) {
     const core = getMspBotsRuntime();
-    const { cfg, agentId, chatId, account, mspBotsAgentId, mspBotsAppId } = params;
+    const { cfg, agentId, chatId, account, mspBotsAgentId, mspBotsAppId, taskId } = params;
 
     const prefixContext = createReplyPrefixContext({
         cfg,
         agentId,
     });
 
-    let messageSent = false;
     
     const { dispatcher, replyOptions, markDispatchIdle } =
         core.channel.reply.createReplyDispatcherWithTyping({
@@ -42,7 +42,7 @@ export function createMspBotsReplyDispatcher(params: CreateMspBotsReplyDispatche
             
             deliver: async (payload: ReplyPayload) => {
                 const text = payload.text ?? "";
-                if (!text.trim() || messageSent) return;
+                if (!text.trim()) return;
 
                 params.runtime.log?.(`[MSPBots] delivering reply: ${text.slice(0, 50)}...`);
 
@@ -51,16 +51,16 @@ export function createMspBotsReplyDispatcher(params: CreateMspBotsReplyDispatche
                     to: chatId,
                     account,
                     mspBotsAgentId,
-                    mspBotsAppId
+                    mspBotsAppId,
+                    taskId,
                 });
                 
-                messageSent = true;
             },
             onError: (err: any, info: any) => {
                 params.runtime.error?.(`[MSPBots] ${info.kind} reply failed: ${String(err)}`);
             },
             onIdle: () => {
-                messageSent = false;
+                
             },
         });
 

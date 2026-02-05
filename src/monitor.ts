@@ -10,12 +10,20 @@ class MspbotsWSClient extends EventEmitter {
     private apiKey: string;
     private wsUrl: string;
     private reconnectTimer: NodeJS.Timeout | null = null;
+    private pingTimer: NodeJS.Timeout | null = null;
     private isClosed = false;
 
     constructor(apiKey: string, wsUrl: string) {
         super();
         this.apiKey = apiKey;
         this.wsUrl = wsUrl;
+    }
+
+    private sendPing() {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            console.log("[MSPBots] Sending ping");
+            this.ws.send(JSON.stringify({ type: "ping" }));
+        }
     }
 
     connect() {
@@ -35,6 +43,11 @@ class MspbotsWSClient extends EventEmitter {
             this.ws.on("open", () => {
                 console.log("[MSPBots] WebSocket connected");
                 this.emit("open");
+                
+                // Start ping timer
+                this.pingTimer = setInterval(() => {
+                    this.sendPing();
+                }, 30000); // 30 seconds
             });
 
             this.ws.on("message", (data) => {
@@ -73,6 +86,7 @@ class MspbotsWSClient extends EventEmitter {
     private scheduleReconnect() {
         if (this.isClosed) return;
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.pingTimer) clearInterval(this.pingTimer);
 
         console.log("[MSPBots] Reconnecting in 5s...");
         this.reconnectTimer = setTimeout(() => {
@@ -83,6 +97,7 @@ class MspbotsWSClient extends EventEmitter {
     close() {
         this.isClosed = true;
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.pingTimer) clearInterval(this.pingTimer);
         if (this.ws) {
             this.ws.close();
             this.ws = null;
@@ -121,7 +136,8 @@ export function monitorMspBotsProvider(ctx: any) {
         
         wsUrl = `${baseUrl}/ws/openclaw`;
     } else {
-        wsUrl = process.env.MSPBOTS_WS_URL || "ws://192.168.1.39:8000/ws/openclaw";
+        console.error("[MSPBots] No root URL provided for account:", accountId);
+        return;
     }
 
     const wsClient = new MspbotsWSClient(token, wsUrl);
@@ -131,7 +147,7 @@ export function monitorMspBotsProvider(ctx: any) {
         if (data) {
             console.log(`[MSPBots] Received WebSocket message:`, JSON.stringify(data, null, 2));
             // Filter out internal system messages
-            if (data.type === 'connection' || data.type === 'ping') {
+            if (data.type === 'connection') {
                 return;
             }
 
