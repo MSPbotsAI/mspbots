@@ -276,7 +276,7 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
         // Success response: { "success": true, ...config_fields }
         // Extract config by removing the "success" field
         const { success, ...worker } = response;
-        const { configData } = worker;
+        const { configData } = worker.configs;
         // Validate that we have actual config data
         if (Object.keys(configData).length === 0) {
             console.error('[MSPBots ConfigSync] Success but no config data received');
