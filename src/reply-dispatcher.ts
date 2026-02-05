@@ -57,7 +57,11 @@ export function createMspBotsReplyDispatcher(params: CreateMspBotsReplyDispatche
                 
             },
             onError: (err: any, info: any) => {
-                params.runtime.error?.(`[MSPBots] ${info.kind} reply failed: ${String(err)}`);
+                if (params.runtime) {
+                    params.runtime.error?.(`[MSPBots] ${info.kind} reply failed: ${String(err)}`);
+                } else {
+                    console.error(`[MSPBots] ${info.kind} reply failed: ${String(err)}`);
+                }
             },
             onIdle: () => {
                 
