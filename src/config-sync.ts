@@ -28,11 +28,13 @@ export interface ConfigSyncOptions {
 
 /**
  * API response structure
+ * Success: { "success": true, ...config_fields }
+ * Error: { "success": false, "error": "message" }
  */
 interface ApiResponse {
-    status: 'success' | 'waiting' | 'error';
-    config?: Record<string, any>;  // New configuration data
-    message?: string;              // Error or status message
+    success: boolean;
+    error?: string;            // Error message when success is false
+    [key: string]: any;        // Config fields when success is true
 }
 
 /**
@@ -119,8 +121,9 @@ function writeLocalConfig(configPath: string, config: Record<string, any>): void
 
 /**
  * Make API request to distribution platform
- * @param apiUrl API endpoint URL
- * @param systemInfo System information to send
+ * GET request with IP as identity parameter
+ * @param apiUrl API base URL (should end with ?identity=)
+ * @param systemInfo System information (IP is used)
  * @returns API response or null on network error
  */
 async function fetchConfigFromApi(
@@ -128,12 +131,15 @@ async function fetchConfigFromApi(
     systemInfo: SystemInfo
 ): Promise<ApiResponse | null> {
     try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
+        // Build URL with IP as identity parameter
+        const fullUrl = `${apiUrl}${encodeURIComponent(systemInfo.ip)}`;
+        console.log(`[MSPBots ConfigSync] Fetching config from: ${fullUrl}`);
+        
+        const response = await fetch(fullUrl, {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(systemInfo),
         });
         
         if (!response.ok) {
@@ -259,50 +265,45 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
             continue;
         }
         
-        // Handle different response statuses
-        switch (response.status) {
-            case 'waiting':
-                console.log('[MSPBots ConfigSync] Server status: waiting, retrying...');
-                await sleep(pollIntervalMs);
-                continue;
-                
-            case 'error':
-                console.error('[MSPBots ConfigSync] Server error:', response.message);
-                await sleep(pollIntervalMs);
-                continue;
-                
-            case 'success':
-                if (!response.config) {
-                    console.error('[MSPBots ConfigSync] Success but no config data received');
-                    await sleep(pollIntervalMs);
-                    continue;
-                }
-                
-                // Check if configs are equal
-                if (configsAreEqual(localConfig, response.config)) {
-                    console.log('[MSPBots ConfigSync] Config is up to date, no update needed');
-                    syncComplete = true;
-                    onSyncComplete?.(localConfig);
-                } else {
-                    // Write new config to local file
-                    console.log('[MSPBots ConfigSync] Config differs, updating local file...');
-                    writeLocalConfig(localConfigPath, response.config);
-                    console.log('[MSPBots ConfigSync] Config updated successfully!');
-                    
-                    // Restart gateway if enabled
-                    if (restartAfterSync) {
-                        await restartGateway();
-                    }
-                    
-                    syncComplete = true;
-                    onSyncComplete?.(response.config);
-                }
-                break;
-                
-            default:
-                console.warn('[MSPBots ConfigSync] Unknown status:', response.status);
-                await sleep(pollIntervalMs);
-                continue;
+        // Handle API response based on success field
+        if (!response.success) {
+            // Error response: { "success": false, "error": "message" }
+            console.error('[MSPBots ConfigSync] Server error:', response.error || 'Unknown error');
+            await sleep(pollIntervalMs);
+            continue;
+        }
+        
+        // Success response: { "success": true, ...config_fields }
+        // Extract config by removing the "success" field
+        const { success, ...configData } = response;
+        
+        // Validate that we have actual config data
+        if (Object.keys(configData).length === 0) {
+            console.error('[MSPBots ConfigSync] Success but no config data received');
+            await sleep(pollIntervalMs);
+            continue;
+        }
+        
+        console.log('[MSPBots ConfigSync] Received valid config from server');
+        
+        // Check if configs are equal
+        if (configsAreEqual(localConfig, configData)) {
+            console.log('[MSPBots ConfigSync] Config is up to date, no update needed');
+            syncComplete = true;
+            onSyncComplete?.(localConfig);
+        } else {
+            // Write new config to local file (without "success" field)
+            console.log('[MSPBots ConfigSync] Config differs, updating local file...');
+            writeLocalConfig(localConfigPath, configData);
+            console.log('[MSPBots ConfigSync] Config updated successfully!');
+            
+            // Restart gateway if enabled
+            if (restartAfterSync) {
+                await restartGateway();
+            }
+            
+            syncComplete = true;
+            onSyncComplete?.(configData);
         }
     }
     
