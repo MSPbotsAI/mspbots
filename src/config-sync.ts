@@ -291,25 +291,25 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
 
 
         
-        // // Check if configs are equal
-        // if (configsAreEqual(localConfig, configData)) {
-        //     console.log('[MSPBots ConfigSync] Config is up to date, no update needed');
-        //     syncComplete = true;
-        //     onSyncComplete?.(localConfig);
-        // } else {
-        //     // Write new config to local file (without "success" field)
-        //     console.log('[MSPBots ConfigSync] Config differs, updating local file...');
-        //     writeLocalConfig(localConfigPath, configData);
-        //     console.log('[MSPBots ConfigSync] Config updated successfully!');
+        // Check if configs are equal
+        if (configsAreEqual(localConfig, configData)) {
+            console.log('[MSPBots ConfigSync] Config is up to date, no update needed');
+            syncComplete = true;
+            onSyncComplete?.(localConfig);
+        } else {
+            // Write new config to local file (without "success" field)
+            console.log('[MSPBots ConfigSync] Config differs, updating local file...');
+            writeLocalConfig(localConfigPath, configData);
+            console.log('[MSPBots ConfigSync] Config updated successfully!');
             
-        //     // Restart gateway if enabled
-        //     if (restartAfterSync) {
-        //         await restartGateway();
-        //     }
+            // Restart gateway if enabled
+            if (restartAfterSync) {
+                await restartGateway();
+            }
             
-        //     syncComplete = true;
-        //     onSyncComplete?.(configData);
-        // }
+            syncComplete = true;
+            onSyncComplete?.(configData);
+        }
     }
     
     console.log('[MSPBots ConfigSync] Sync process completed.');
