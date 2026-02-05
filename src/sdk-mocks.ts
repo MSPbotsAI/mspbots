@@ -32,3 +32,39 @@ export function setAccountEnabledInConfigSection(params: any) {
 }
 
 export type ChannelPlugin<T> = any; // Simplify type for mock
+
+// Additional mock types for plugin registration
+export type OpenClawPluginApi = {
+    runtime: any;
+    logger: {
+        info: (msg: string) => void;
+        warn: (msg: string) => void;
+        error: (msg: string) => void;
+        debug: (msg: string) => void;
+    };
+    registerChannel: (options: { plugin: any }) => void;
+};
+
+export function emptyPluginConfigSchema() {
+    return {
+        type: "object",
+        properties: {},
+        additionalProperties: false
+    };
+}
+
+export function createReplyPrefixContext(params: any) {
+    return {
+        responsePrefix: "",
+        responsePrefixContextProvider: () => ({}),
+        onModelSelected: () => {}
+    };
+}
+
+export type ClawdbotConfig = any;
+export type RuntimeEnv = any;
+export type ReplyPayload = {
+    text?: string;
+    [key: string]: any;
+};
+

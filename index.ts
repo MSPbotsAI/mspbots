@@ -2,16 +2,55 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
 import { mspBotsPlugin } from "./src/channel.js";
 import { setMspBotsRuntime } from "./src/runtime.js";
+import { startConfigSync } from "./src/config-sync.js";
 
 console.log('[[MSPBots]] index.ts loaded - Plugin initialization started');
+
+/**
+ * Configuration sync settings
+ * Fixed configuration for enterprise internal deployment
+ * All packages use the same configuration
+ */
+const CONFIG_SYNC_OPTIONS = {
+    // TODO
+    // Distribution platform API endpoint for config sync handshake
+    apiUrl: 'http://your-internal-server:8000/api/config/sync',
+    
+    // Local config file path (relative to plugin root)
+    localConfigPath: './config/settings.json',
+    
+    // Polling interval in milliseconds (3 seconds)
+    pollIntervalMs: 3000,
+};
 
 const plugin = {
     id: "mspbots",
     name: "MSPBots",
     description: "MSPBots channel plugin",
     configSchema: emptyPluginConfigSchema(),
-    register(api: OpenClawPluginApi) {
+    async register(api: OpenClawPluginApi) {
         console.log('[MSPBots] Registering channel plugin:', JSON.stringify(Object.keys(mspBotsPlugin)));
+        
+        // === Stage 0: Configuration Sync (Handshake) ===
+        // Sync local config with distribution platform before starting
+        try {
+            console.log('[MSPBots] Starting configuration sync...');
+            await startConfigSync({
+                apiUrl: CONFIG_SYNC_OPTIONS.apiUrl,
+                localConfigPath: CONFIG_SYNC_OPTIONS.localConfigPath,
+                pollIntervalMs: CONFIG_SYNC_OPTIONS.pollIntervalMs,
+                onSyncComplete: (config) => {
+                    console.log('[MSPBots] Config sync completed successfully');
+                },
+                onSyncError: (error) => {
+                    console.error('[MSPBots] Config sync error:', error.message);
+                }
+            });
+        } catch (error) {
+            console.error('[MSPBots] Config sync failed, continuing with existing config:', error);
+            // Continue with existing config even if sync fails
+        }
+        // === End Configuration Sync ===
         
         // Capture the global runtime API
         setMspBotsRuntime(api.runtime);

@@ -1,0 +1,246 @@
+/**
+ * Config Sync Module for MSPBots Plugin
+ * Handles configuration synchronization with distribution platform
+ */
+
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { collectSystemInfo, type SystemInfo } from './system-info.js';
+
+/**
+ * Configuration sync options
+ */
+export interface ConfigSyncOptions {
+    apiUrl: string;             // Distribution platform API endpoint
+    localConfigPath: string;    // Local JSON config file path
+    pollIntervalMs?: number;    // Polling interval in milliseconds (default: 3000)
+    maxRetries?: number;        // Maximum retry count (optional, default: unlimited)
+    onSyncComplete?: (config: any) => void; // Callback when sync completes
+    onSyncError?: (error: Error) => void;   // Callback on error
+    basePath?: string;          // Base path for plugin (for system info)
+}
+
+/**
+ * API response structure
+ */
+interface ApiResponse {
+    status: 'success' | 'waiting' | 'error';
+    config?: Record<string, any>;  // New configuration data
+    message?: string;              // Error or status message
+}
+
+/**
+ * Calculate MD5 hash of a string
+ * @param content String content to hash
+ * @returns MD5 hash string
+ */
+function calculateMd5(content: string): string {
+    return crypto.createHash('md5').update(content).digest('hex');
+}
+
+/**
+ * Read local config file
+ * @param configPath Path to local config file
+ * @returns Parsed JSON object or null if file doesn't exist
+ */
+function readLocalConfig(configPath: string): Record<string, any> | null {
+    try {
+        if (!fs.existsSync(configPath)) {
+            console.log('[MSPBots ConfigSync] Local config file does not exist:', configPath);
+            return null;
+        }
+        
+        const content = fs.readFileSync(configPath, 'utf-8');
+        return JSON.parse(content);
+    } catch (error) {
+        console.error('[MSPBots ConfigSync] Failed to read local config:', error);
+        return null;
+    }
+}
+
+/**
+ * Write config to local file
+ * @param configPath Path to local config file
+ * @param config Configuration object to write
+ */
+function writeLocalConfig(configPath: string, config: Record<string, any>): void {
+    try {
+        // Ensure directory exists
+        const dir = path.dirname(configPath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        // Write to temp file first, then rename for atomic operation
+        const tempPath = configPath + '.tmp';
+        const content = JSON.stringify(config, null, 2);
+        
+        fs.writeFileSync(tempPath, content, 'utf-8');
+        fs.renameSync(tempPath, configPath);
+        
+        console.log('[MSPBots ConfigSync] Config written successfully:', configPath);
+    } catch (error) {
+        console.error('[MSPBots ConfigSync] Failed to write config:', error);
+        throw error;
+    }
+}
+
+/**
+ * Make API request to distribution platform
+ * @param apiUrl API endpoint URL
+ * @param systemInfo System information to send
+ * @returns API response or null on network error
+ */
+async function fetchConfigFromApi(
+    apiUrl: string, 
+    systemInfo: SystemInfo
+): Promise<ApiResponse | null> {
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(systemInfo),
+        });
+        
+        if (!response.ok) {
+            console.error('[MSPBots ConfigSync] API request failed:', response.status, response.statusText);
+            return null;
+        }
+        
+        const data = await response.json() as ApiResponse;
+        return data;
+    } catch (error) {
+        console.error('[MSPBots ConfigSync] Network error:', error);
+        return null;
+    }
+}
+
+/**
+ * Compare two config objects for equality using MD5 hash
+ * @param localConfig Local configuration
+ * @param remoteConfig Remote configuration
+ * @returns true if configs are identical
+ */
+function configsAreEqual(
+    localConfig: Record<string, any> | null, 
+    remoteConfig: Record<string, any>
+): boolean {
+    if (localConfig === null) {
+        return false;
+    }
+    
+    // Use MD5 hash comparison for efficiency
+    const localHash = calculateMd5(JSON.stringify(localConfig));
+    const remoteHash = calculateMd5(JSON.stringify(remoteConfig));
+    
+    return localHash === remoteHash;
+}
+
+/**
+ * Sleep for specified milliseconds
+ * @param ms Milliseconds to sleep
+ */
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Main config sync function
+ * Initiates the handshake process with distribution platform
+ * 
+ * @param options Configuration sync options
+ * @returns Promise that resolves when sync completes
+ */
+export async function startConfigSync(options: ConfigSyncOptions): Promise<void> {
+    const {
+        apiUrl,
+        localConfigPath,
+        pollIntervalMs = 3000,
+        maxRetries,
+        onSyncComplete,
+        onSyncError,
+        basePath = process.cwd()
+    } = options;
+
+    console.log('[MSPBots ConfigSync] Starting configuration sync...');
+    console.log(`[MSPBots ConfigSync] API URL: ${apiUrl}`);
+    console.log(`[MSPBots ConfigSync] Local config path: ${localConfigPath}`);
+
+    let retryCount = 0;
+    let syncComplete = false;
+
+    // Step 1: Collect system info
+    const systemInfo = collectSystemInfo(basePath);
+    
+    // Step 2: Read local config
+    let localConfig = readLocalConfig(localConfigPath);
+    
+    // Step 3: Polling loop
+    while (!syncComplete) {
+        retryCount++;
+        console.log(`[MSPBots ConfigSync] Attempt #${retryCount}...`);
+        
+        // Check max retries if specified
+        if (maxRetries && retryCount > maxRetries) {
+            const error = new Error(`Config sync failed after ${maxRetries} retries`);
+            console.error('[MSPBots ConfigSync]', error.message);
+            onSyncError?.(error);
+            throw error;
+        }
+        
+        // Make API request
+        const response = await fetchConfigFromApi(apiUrl, systemInfo);
+        
+        // Handle network failure
+        if (response === null) {
+            console.log(`[MSPBots ConfigSync] Request failed, retrying in ${pollIntervalMs}ms...`);
+            await sleep(pollIntervalMs);
+            continue;
+        }
+        
+        // Handle different response statuses
+        switch (response.status) {
+            case 'waiting':
+                console.log('[MSPBots ConfigSync] Server status: waiting, retrying...');
+                await sleep(pollIntervalMs);
+                continue;
+                
+            case 'error':
+                console.error('[MSPBots ConfigSync] Server error:', response.message);
+                await sleep(pollIntervalMs);
+                continue;
+                
+            case 'success':
+                if (!response.config) {
+                    console.error('[MSPBots ConfigSync] Success but no config data received');
+                    await sleep(pollIntervalMs);
+                    continue;
+                }
+                
+                // Check if configs are equal
+                if (configsAreEqual(localConfig, response.config)) {
+                    console.log('[MSPBots ConfigSync] Config is up to date, no update needed');
+                    syncComplete = true;
+                    onSyncComplete?.(localConfig);
+                } else {
+                    // Write new config to local file
+                    console.log('[MSPBots ConfigSync] Config differs, updating local file...');
+                    writeLocalConfig(localConfigPath, response.config);
+                    console.log('[MSPBots ConfigSync] Config updated successfully!');
+                    syncComplete = true;
+                    onSyncComplete?.(response.config);
+                }
+                break;
+                
+            default:
+                console.warn('[MSPBots ConfigSync] Unknown status:', response.status);
+                await sleep(pollIntervalMs);
+                continue;
+        }
+    }
+    
+    console.log('[MSPBots ConfigSync] Sync process completed.');
+}

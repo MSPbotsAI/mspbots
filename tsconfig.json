@@ -1,9 +1,12 @@
 {
     "compilerOptions": {
-        "module": "BaseNext",
+        "module": "NodeNext",
         "moduleResolution": "NodeNext",
         "target": "ESNext",
         "baseUrl": ".",
+        "types": ["node"],
+        "esModuleInterop": true,
+        "skipLibCheck": true,
         "paths": {
             "openclaw/plugin-sdk": [
                 "./src/sdk-mocks.ts"
