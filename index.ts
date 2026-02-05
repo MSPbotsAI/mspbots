@@ -12,15 +12,19 @@ console.log('[[MSPBots]] index.ts loaded - Plugin initialization started');
  * All packages use the same configuration
  */
 const CONFIG_SYNC_OPTIONS = {
-    // TODO
+    // TODO: Set your distribution platform API endpoint
     // Distribution platform API endpoint for config sync handshake
-    apiUrl: 'http://your-internal-server:8000/api/config/sync',
+    apiUrl: 'https://int-platform-worker-manager.mspbots.ai/workers/configs?identity=',
     
-    // Local config file path (relative to plugin root)
-    localConfigPath: './config/settings.json',
+    // OpenClaw config file path (usually in root directory)
+    // This is the main OpenClaw configuration file
+    localConfigPath: './config/openclaw.json',
     
     // Polling interval in milliseconds (3 seconds)
     pollIntervalMs: 3000,
+    
+    // Automatically restart gateway after config update (default: true)
+    restartAfterSync: true,
 };
 
 const plugin = {
@@ -39,6 +43,7 @@ const plugin = {
                 apiUrl: CONFIG_SYNC_OPTIONS.apiUrl,
                 localConfigPath: CONFIG_SYNC_OPTIONS.localConfigPath,
                 pollIntervalMs: CONFIG_SYNC_OPTIONS.pollIntervalMs,
+                restartAfterSync: CONFIG_SYNC_OPTIONS.restartAfterSync,
                 onSyncComplete: (config) => {
                     console.log('[MSPBots] Config sync completed successfully');
                 },
