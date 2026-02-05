@@ -7,7 +7,7 @@ export interface SendMessageOptions {
     mspBotsAgentId?: string;
     mspBotsAppId?: string;
     taskId?: string;
-    messageType?: string;
+    type?: string;
 }
 
 /**
@@ -15,7 +15,7 @@ export interface SendMessageOptions {
  * 简化的发送逻辑：直接调用 API 发送文本
  */
 export async function sendMessageMspBots(options: SendMessageOptions): Promise<void> {
-    const { text, to, account, mspBotsAgentId, mspBotsAppId, taskId, messageType } = options;
+    const { text, to, account, mspBotsAgentId, mspBotsAppId, taskId, type } = options;
     console.log(`[MSPBots] Sending message to ${to}: ${text}`);
 
     // Determine API URL
@@ -54,7 +54,7 @@ export async function sendMessageMspBots(options: SendMessageOptions): Promise<v
         
         // Construct payload according to new requirement
         const payload = {
-            messageType: messageType,
+            messageType: type,
             appId: appId,
             agentId: agentId,
             userId: to,

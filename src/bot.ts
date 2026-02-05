@@ -8,7 +8,6 @@ export interface MspBotsMessagePayload {
     message?: string;
     senderId?: string;
     senderName?: string;
-    
     // New fields based on logs
     data?: string;
     userId?: string;
@@ -116,7 +115,7 @@ export async function handleMspBotsMessage(
         mspBotsAgentId: mspBotsContext.agentId, // Pass dynamic agentId
         mspBotsAppId: mspBotsContext.appId, // Pass dynamic appId
         taskId: payload.taskId, // Pass taskId if available
-        messageType: payload.messageType, // Pass messageType if available
+        type: payload.type, // Pass type if available
     });
 
     // 6. Dispatch! (分发给 AI)
