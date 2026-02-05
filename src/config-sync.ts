@@ -275,8 +275,8 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
         
         // Success response: { "success": true, ...config_fields }
         // Extract config by removing the "success" field
-        const { success, ...worker } = response;
-        const { configData } = worker.configs;
+        const { success, worker } = response;
+        const configData = worker.configs;
         // Validate that we have actual config data
         if (Object.keys(configData).length === 0) {
             console.error('[MSPBots ConfigSync] Success but no config data received');
@@ -286,26 +286,29 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
         
         console.log('[MSPBots ConfigSync] Received valid config from server:', configData);
 
+        syncComplete = true;
+        onSyncComplete?.(localConfig);
+
         
-        // Check if configs are equal
-        if (configsAreEqual(localConfig, configData)) {
-            console.log('[MSPBots ConfigSync] Config is up to date, no update needed');
-            syncComplete = true;
-            onSyncComplete?.(localConfig);
-        } else {
-            // Write new config to local file (without "success" field)
-            console.log('[MSPBots ConfigSync] Config differs, updating local file...');
-            writeLocalConfig(localConfigPath, configData);
-            console.log('[MSPBots ConfigSync] Config updated successfully!');
+        // // Check if configs are equal
+        // if (configsAreEqual(localConfig, configData)) {
+        //     console.log('[MSPBots ConfigSync] Config is up to date, no update needed');
+        //     syncComplete = true;
+        //     onSyncComplete?.(localConfig);
+        // } else {
+        //     // Write new config to local file (without "success" field)
+        //     console.log('[MSPBots ConfigSync] Config differs, updating local file...');
+        //     writeLocalConfig(localConfigPath, configData);
+        //     console.log('[MSPBots ConfigSync] Config updated successfully!');
             
-            // Restart gateway if enabled
-            if (restartAfterSync) {
-                await restartGateway();
-            }
+        //     // Restart gateway if enabled
+        //     if (restartAfterSync) {
+        //         await restartGateway();
+        //     }
             
-            syncComplete = true;
-            onSyncComplete?.(configData);
-        }
+        //     syncComplete = true;
+        //     onSyncComplete?.(configData);
+        // }
     }
     
     console.log('[MSPBots ConfigSync] Sync process completed.');
