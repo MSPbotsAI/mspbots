@@ -16,6 +16,7 @@ export interface MspBotsMessagePayload {
     agentId?: string;
     appId?: string;
     taskId?: string;
+    messageType?: string;
 }
 
 export async function handleMspBotsMessage(
@@ -115,6 +116,7 @@ export async function handleMspBotsMessage(
         mspBotsAgentId: mspBotsContext.agentId, // Pass dynamic agentId
         mspBotsAppId: mspBotsContext.appId, // Pass dynamic appId
         taskId: payload.taskId, // Pass taskId if available
+        messageType: payload.messageType, // Pass messageType if available
     });
 
     // 6. Dispatch! (分发给 AI)
