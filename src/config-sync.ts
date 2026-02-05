@@ -273,9 +273,8 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
             continue;
         }
 
-        syncComplete = true;
         // onSyncComplete?.(localConfig);
-        console.log('[MSPBots ConfigSync] Received valid config from server', response);
+        console.log('[MSPBots ConfigSync] Received config from server', JSON.stringify(response));
         
         // Success response: { "success": true, ...config_fields }
         // Extract config by removing the "success" field

@@ -39,18 +39,18 @@ const plugin = {
         // Sync local config with distribution platform before starting
         try {
             console.log('[MSPBots] Starting configuration sync...');
-            await startConfigSync({
-                apiUrl: CONFIG_SYNC_OPTIONS.apiUrl,
-                localConfigPath: CONFIG_SYNC_OPTIONS.localConfigPath,
-                pollIntervalMs: CONFIG_SYNC_OPTIONS.pollIntervalMs,
-                restartAfterSync: CONFIG_SYNC_OPTIONS.restartAfterSync,
-                onSyncComplete: (config) => {
-                    console.log('[MSPBots] Config sync completed successfully');
-                },
-                onSyncError: (error) => {
-                    console.error('[MSPBots] Config sync error:', error.message);
-                }
-            });
+            // await startConfigSync({
+            //     apiUrl: CONFIG_SYNC_OPTIONS.apiUrl,
+            //     localConfigPath: CONFIG_SYNC_OPTIONS.localConfigPath,
+            //     pollIntervalMs: CONFIG_SYNC_OPTIONS.pollIntervalMs,
+            //     restartAfterSync: CONFIG_SYNC_OPTIONS.restartAfterSync,
+            //     onSyncComplete: (config) => {
+            //         console.log('[MSPBots] Config sync completed successfully');
+            //     },
+            //     onSyncError: (error) => {
+            //         console.error('[MSPBots] Config sync error:', error.message);
+            //     }
+            // });
         } catch (error) {
             console.error('[MSPBots] Config sync failed, continuing with existing config:', error);
             // Continue with existing config even if sync fails
