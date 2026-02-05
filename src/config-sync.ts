@@ -272,6 +272,10 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
             await sleep(pollIntervalMs);
             continue;
         }
+
+        syncComplete = true;
+        // onSyncComplete?.(localConfig);
+        console.log('[MSPBots ConfigSync] Received valid config from server', response);
         
         // Success response: { "success": true, ...config_fields }
         // Extract config by removing the "success" field
@@ -284,10 +288,8 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
             continue;
         }
         
-        console.log('[MSPBots ConfigSync] Received valid config from server:', configData);
+        console.log('[MSPBots ConfigSync] Received valid config from server',);
 
-        syncComplete = true;
-        onSyncComplete?.(localConfig);
 
         
         // // Check if configs are equal
