@@ -6,7 +6,11 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { collectSystemInfo, type SystemInfo } from './system-info.js';
+
+const execAsync = promisify(exec);
 
 /**
  * Configuration sync options
@@ -16,6 +20,7 @@ export interface ConfigSyncOptions {
     localConfigPath: string;    // Local JSON config file path
     pollIntervalMs?: number;    // Polling interval in milliseconds (default: 3000)
     maxRetries?: number;        // Maximum retry count (optional, default: unlimited)
+    restartAfterSync?: boolean; // Whether to restart gateway after config update (default: true)
     onSyncComplete?: (config: any) => void; // Callback when sync completes
     onSyncError?: (error: Error) => void;   // Callback on error
     basePath?: string;          // Base path for plugin (for system info)
@@ -37,6 +42,32 @@ interface ApiResponse {
  */
 function calculateMd5(content: string): string {
     return crypto.createHash('md5').update(content).digest('hex');
+}
+
+/**
+ * Recursively sort object keys to ensure consistent JSON stringification
+ * This fixes the issue where same objects with different key orders 
+ * would produce different MD5 hashes
+ * @param obj Object to sort
+ * @returns Object with sorted keys (recursively)
+ */
+function sortObjectKeys(obj: any): any {
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+    
+    if (Array.isArray(obj)) {
+        return obj.map(sortObjectKeys);
+    }
+    
+    const sortedObj: Record<string, any> = {};
+    const keys = Object.keys(obj).sort();
+    
+    for (const key of keys) {
+        sortedObj[key] = sortObjectKeys(obj[key]);
+    }
+    
+    return sortedObj;
 }
 
 /**
@@ -132,9 +163,14 @@ function configsAreEqual(
         return false;
     }
     
-    // Use MD5 hash comparison for efficiency
-    const localHash = calculateMd5(JSON.stringify(localConfig));
-    const remoteHash = calculateMd5(JSON.stringify(remoteConfig));
+    // Sort keys recursively before comparison to ensure consistent hashing
+    // This fixes issues where same objects with different key orders 
+    // would be incorrectly identified as different
+    const sortedLocal = sortObjectKeys(localConfig);
+    const sortedRemote = sortObjectKeys(remoteConfig);
+    
+    const localHash = calculateMd5(JSON.stringify(sortedLocal));
+    const remoteHash = calculateMd5(JSON.stringify(sortedRemote));
     
     return localHash === remoteHash;
 }
@@ -145,6 +181,27 @@ function configsAreEqual(
  */
 function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Restart OpenClaw gateway after config update
+ * Executes: openclaw gateway restart
+ */
+async function restartGateway(): Promise<void> {
+    console.log('[MSPBots ConfigSync] Restarting OpenClaw gateway...');
+    try {
+        const { stdout, stderr } = await execAsync('openclaw gateway restart');
+        if (stdout) {
+            console.log('[MSPBots ConfigSync] Gateway restart output:', stdout.trim());
+        }
+        if (stderr) {
+            console.warn('[MSPBots ConfigSync] Gateway restart stderr:', stderr.trim());
+        }
+        console.log('[MSPBots ConfigSync] Gateway restart command executed successfully');
+    } catch (error) {
+        console.error('[MSPBots ConfigSync] Failed to restart gateway:', error);
+        // Don't throw - restart failure shouldn't break the sync process
+    }
 }
 
 /**
@@ -160,6 +217,7 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
         localConfigPath,
         pollIntervalMs = 3000,
         maxRetries,
+        restartAfterSync = true,  // Default: restart gateway after config update
         onSyncComplete,
         onSyncError,
         basePath = process.cwd()
@@ -230,6 +288,12 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
                     console.log('[MSPBots ConfigSync] Config differs, updating local file...');
                     writeLocalConfig(localConfigPath, response.config);
                     console.log('[MSPBots ConfigSync] Config updated successfully!');
+                    
+                    // Restart gateway if enabled
+                    if (restartAfterSync) {
+                        await restartGateway();
+                    }
+                    
                     syncComplete = true;
                     onSyncComplete?.(response.config);
                 }
