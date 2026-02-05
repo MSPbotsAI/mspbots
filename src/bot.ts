@@ -49,6 +49,7 @@ export async function handleMspBotsMessage(
 
     const core = getMspBotsRuntime();
     const messageId = "msg-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+    const taskId = payload.taskId;
     
     // 1. Resolve Agent Route (确定 Session Key)
     const mspBotsFrom = `mspbots:${sender.id}`;
@@ -69,7 +70,7 @@ export async function handleMspBotsMessage(
     // 2. Enqueue System Event (记录日志到 Session)
     core.system.enqueueSystemEvent(`MSPBots message from ${sender.name}: ${rawText.slice(0, 50)}`, {
         sessionKey: route.sessionKey,
-        contextKey: `mspbots:message:${messageId}`,
+        contextKey: taskId ? `mspbots:message:${taskId}` : `mspbots:message:${messageId}`,
     });
 
     // 3. Build Envelope Body (构建最终给 AI 的 Prompt Body)
