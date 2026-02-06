@@ -262,7 +262,8 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
     console.log(`[MSPBots ConfigSync] Local config path: ${localConfigPath}`);
     console.log(`[MSPBots ConfigSync] Poll interval: ${pollIntervalMs / 1000} seconds`);
     console.log(`[MSPBots ConfigSync] Max retries: ${maxRetries}`);
-
+    console.log(`[MSPBots ConfigSync] Base path: ${basePath}`);
+    console.log(`[MSPBots ConfigSync] Plugin version: 2026.2.62`);
     let retryCount = 0;
 
     // Step 1: Collect system info

@@ -1,6 +1,6 @@
 {
     "name": "@openclaw/mspbots",
-    "version": "2026.2.61",
+    "version": "2026.2.62",
     "description": "OpenClaw MSPBots channel plugin",
     "type": "module",
     "openclaw": {
