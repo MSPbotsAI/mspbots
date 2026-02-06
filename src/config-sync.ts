@@ -249,9 +249,9 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
     const {
         apiUrl,
         localConfigPath,
-        pollIntervalMs = 3000,
-        maxRetries,
-        restartAfterSync = true,  // Default: restart gateway after config update
+        pollIntervalMs = 60000,  // Default: 1 minute (60000ms)
+        maxRetries = 10,         // Default: max 10 retries
+        restartAfterSync = true, // Default: restart gateway after config update
         onSyncComplete,
         onSyncError,
         basePath = process.cwd()
@@ -260,42 +260,34 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
     console.log('[MSPBots ConfigSync] Starting configuration sync...');
     console.log(`[MSPBots ConfigSync] API URL: ${apiUrl}`);
     console.log(`[MSPBots ConfigSync] Local config path: ${localConfigPath}`);
+    console.log(`[MSPBots ConfigSync] Poll interval: ${pollIntervalMs / 1000} seconds`);
+    console.log(`[MSPBots ConfigSync] Max retries: ${maxRetries}`);
 
     let retryCount = 0;
-    let syncComplete = false;
 
     // Step 1: Collect system info
     const systemInfo = collectSystemInfo(basePath);
     
     // Step 2: Read local config
-    let localConfig = readLocalConfig(localConfigPath);
+    const localConfig = readLocalConfig(localConfigPath);
     
-    // Step 3: Polling loop
-    while (!syncComplete) {
+    // Step 3: Polling loop (max 10 attempts, 1 minute apart)
+    while (retryCount < maxRetries) {
         retryCount++;
-        console.log(`[MSPBots ConfigSync] Attempt #${retryCount}...`);
-        
-        // Check max retries if specified
-        if (maxRetries && retryCount > maxRetries) {
-            const error = new Error(`Config sync failed after ${maxRetries} retries`);
-            console.error('[MSPBots ConfigSync]', error.message);
-            onSyncError?.(error);
-            throw error;
-        }
+        console.log(`[MSPBots ConfigSync] Attempt #${retryCount}/${maxRetries}...`);
         
         // Make API request
         const response = await fetchConfigFromApi(apiUrl, systemInfo);
         
-        // Handle network failure
+        // Handle network failure - continue to next retry
         if (response === null) {
-            console.log(`[MSPBots ConfigSync] Request failed, retrying in ${pollIntervalMs}ms...`);
+            console.log(`[MSPBots ConfigSync] Request failed, will retry in ${pollIntervalMs / 1000} seconds...`);
             await sleep(pollIntervalMs);
             continue;
         }
         
-        // Handle API response based on success field
+        // Handle API error response - continue to next retry
         if (!response.success) {
-            // Error response: { "success": false, "error": "message" }
             console.error('[MSPBots ConfigSync] Server error:', response.error || 'Unknown error');
             await sleep(pollIntervalMs);
             continue;
@@ -303,11 +295,10 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
         
         console.log('[MSPBots ConfigSync] Received response from server');
         
-        // Success response: { "success": true, "worker": { "configs": {...} } }
         // Extract configs from worker object
         const { worker } = response;
         
-        // Validate worker and configs exist
+        // Validate worker and configs exist - continue to next retry
         if (!worker || !worker.configs) {
             console.error('[MSPBots ConfigSync] Success but no worker/configs data received');
             await sleep(pollIntervalMs);
@@ -316,7 +307,7 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
         
         const configData = worker.configs;
         
-        // Validate that configs is not empty
+        // Validate that configs is not empty - continue to next retry
         if (Object.keys(configData).length === 0) {
             console.error('[MSPBots ConfigSync] Success but configs is empty');
             await sleep(pollIntervalMs);
@@ -325,44 +316,35 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
         
         console.log('[MSPBots ConfigSync] Received valid config from server');
         
-        // Check interval for config re-check (30 minutes in milliseconds)
-        const recheckIntervalMs = 30 * 60 * 1000;
-        
-        // Check if configs are equal
+        // Compare configs (ignoring meta and wizard fields)
         if (configsAreEqual(localConfig, configData)) {
+            // Config is the same - EXIT the loop
             console.log('[MSPBots ConfigSync] Config is up to date, no update needed');
-            console.log(`[MSPBots ConfigSync] Will re-check config in ${recheckIntervalMs / 60000} minutes...`);
-            
-            // Wait 30 minutes before re-checking
-            await sleep(recheckIntervalMs);
-            
-            // Update local config reference for next comparison
-            localConfig = readLocalConfig(localConfigPath);
-            continue;  // Continue polling loop
+            console.log('[MSPBots ConfigSync] Sync completed - config matches');
+            onSyncComplete?.(localConfig);
+            return;  // Exit function
         } else {
-            // Write new config to local file
+            // Config differs - overwrite and restart
             console.log('[MSPBots ConfigSync] Config differs, updating local file...');
             writeLocalConfig(localConfigPath, configData);
             console.log('[MSPBots ConfigSync] Config updated successfully!');
             
-            // Restart gateway if enabled
+            // Restart gateway
             if (restartAfterSync) {
                 await restartGateway();
             }
             
-            // Update local config reference
-            localConfig = configData;
-            
-            // Notify callback
+            // Notify callback and exit
             onSyncComplete?.(configData);
-            
-            console.log(`[MSPBots ConfigSync] Will re-check config in ${recheckIntervalMs / 60000} minutes...`);
-            
-            // Wait 30 minutes before re-checking
-            await sleep(recheckIntervalMs);
-            continue;  // Continue polling loop
+            console.log('[MSPBots ConfigSync] Sync completed - config updated and gateway restarted');
+            return;  // Exit function
         }
     }
     
-    console.log('[MSPBots ConfigSync] Sync process completed.');
+    // Reached max retries without getting valid config
+    const error = new Error(`Config sync failed after ${maxRetries} attempts`);
+    console.error('[MSPBots ConfigSync]', error.message);
+    onSyncError?.(error);
+    // Don't throw - allow plugin to continue with existing config
+    console.log('[MSPBots ConfigSync] Continuing with existing configuration');
 }
