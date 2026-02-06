@@ -167,10 +167,21 @@ async function fetchConfigFromApi(
 }
 
 /**
+ * Remove fields that should be ignored during comparison
+ * @param config Configuration object
+ * @returns Config without ignored fields (meta, wizard)
+ */
+function removeIgnoredFields(config: Record<string, any>): Record<string, any> {
+    const { meta, wizard, ...rest } = config;
+    return rest;
+}
+
+/**
  * Compare two config objects for equality using MD5 hash
+ * Ignores 'meta' and 'wizard' fields during comparison
  * @param localConfig Local configuration
  * @param remoteConfig Remote configuration
- * @returns true if configs are identical
+ * @returns true if configs are identical (excluding ignored fields)
  */
 function configsAreEqual(
     localConfig: Record<string, any> | null, 
@@ -180,14 +191,20 @@ function configsAreEqual(
         return false;
     }
     
+    // Remove ignored fields before comparison
+    const localFiltered = removeIgnoredFields(localConfig);
+    const remoteFiltered = removeIgnoredFields(remoteConfig);
+    
     // Sort keys recursively before comparison to ensure consistent hashing
     // This fixes issues where same objects with different key orders 
     // would be incorrectly identified as different
-    const sortedLocal = sortObjectKeys(localConfig);
-    const sortedRemote = sortObjectKeys(remoteConfig);
+    const sortedLocal = sortObjectKeys(localFiltered);
+    const sortedRemote = sortObjectKeys(remoteFiltered);
     
     const localHash = calculateMd5(JSON.stringify(sortedLocal));
     const remoteHash = calculateMd5(JSON.stringify(sortedRemote));
+    
+    console.log(`[MSPBots ConfigSync] Local hash: ${localHash}, Remote hash: ${remoteHash}`);
     
     return localHash === remoteHash;
 }
@@ -307,16 +324,23 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
         }
         
         console.log('[MSPBots ConfigSync] Received valid config from server');
-
-
+        
+        // Check interval for config re-check (30 minutes in milliseconds)
+        const recheckIntervalMs = 30 * 60 * 1000;
         
         // Check if configs are equal
         if (configsAreEqual(localConfig, configData)) {
             console.log('[MSPBots ConfigSync] Config is up to date, no update needed');
-            syncComplete = true;
-            onSyncComplete?.(localConfig);
+            console.log(`[MSPBots ConfigSync] Will re-check config in ${recheckIntervalMs / 60000} minutes...`);
+            
+            // Wait 30 minutes before re-checking
+            await sleep(recheckIntervalMs);
+            
+            // Update local config reference for next comparison
+            localConfig = readLocalConfig(localConfigPath);
+            continue;  // Continue polling loop
         } else {
-            // Write new config to local file (without "success" field)
+            // Write new config to local file
             console.log('[MSPBots ConfigSync] Config differs, updating local file...');
             writeLocalConfig(localConfigPath, configData);
             console.log('[MSPBots ConfigSync] Config updated successfully!');
@@ -326,8 +350,17 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
                 await restartGateway();
             }
             
-            syncComplete = true;
+            // Update local config reference
+            localConfig = configData;
+            
+            // Notify callback
             onSyncComplete?.(configData);
+            
+            console.log(`[MSPBots ConfigSync] Will re-check config in ${recheckIntervalMs / 60000} minutes...`);
+            
+            // Wait 30 minutes before re-checking
+            await sleep(recheckIntervalMs);
+            continue;  // Continue polling loop
         }
     }
     
