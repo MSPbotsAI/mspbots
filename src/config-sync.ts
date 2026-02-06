@@ -27,14 +27,25 @@ export interface ConfigSyncOptions {
 }
 
 /**
+ * Worker data in API response
+ */
+interface WorkerData {
+    id: number;
+    identity: string;
+    configs: Record<string, any>;
+    created_at: string;
+    updated_at: string;
+}
+
+/**
  * API response structure
- * Success: { "success": true, ...config_fields }
+ * Success: { "success": true, "worker": { "configs": {...}, ... } }
  * Error: { "success": false, "error": "message" }
  */
 interface ApiResponse {
     success: boolean;
+    worker?: WorkerData;       // Worker data when success is true
     error?: string;            // Error message when success is false
-    [key: string]: any;        // Config fields when success is true
 }
 
 /**
@@ -272,22 +283,30 @@ export async function startConfigSync(options: ConfigSyncOptions): Promise<void>
             await sleep(pollIntervalMs);
             continue;
         }
-
-        // onSyncComplete?.(localConfig);
-        console.log('[MSPBots ConfigSync] Received config from server', JSON.stringify(response));
         
-        // Success response: { "success": true, ...config_fields }
-        // Extract config by removing the "success" field
-        const { success, worker } = response;
-        const configData = worker.configs;
-        // Validate that we have actual config data
-        if (Object.keys(configData).length === 0) {
-            console.error('[MSPBots ConfigSync] Success but no config data received');
+        console.log('[MSPBots ConfigSync] Received response from server');
+        
+        // Success response: { "success": true, "worker": { "configs": {...} } }
+        // Extract configs from worker object
+        const { worker } = response;
+        
+        // Validate worker and configs exist
+        if (!worker || !worker.configs) {
+            console.error('[MSPBots ConfigSync] Success but no worker/configs data received');
             await sleep(pollIntervalMs);
             continue;
         }
         
-        console.log('[MSPBots ConfigSync] Received valid config from server',);
+        const configData = worker.configs;
+        
+        // Validate that configs is not empty
+        if (Object.keys(configData).length === 0) {
+            console.error('[MSPBots ConfigSync] Success but configs is empty');
+            await sleep(pollIntervalMs);
+            continue;
+        }
+        
+        console.log('[MSPBots ConfigSync] Received valid config from server');
 
 
         
