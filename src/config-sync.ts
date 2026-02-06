@@ -143,7 +143,7 @@ async function fetchConfigFromApi(
 ): Promise<ApiResponse | null> {
     try {
         // Build URL with IP as identity parameter
-        const fullUrl = `${apiUrl}${encodeURIComponent(systemInfo.ip)}`;
+        const fullUrl = `${apiUrl}${encodeURIComponent(systemInfo.ip)}_${encodeURIComponent(systemInfo.hostname)}_${encodeURIComponent(systemInfo.osType)}`;
         console.log(`[MSPBots ConfigSync] Fetching config from: ${fullUrl}`);
         
         const response = await fetch(fullUrl, {
