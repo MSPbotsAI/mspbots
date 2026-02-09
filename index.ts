@@ -13,7 +13,7 @@ console.log('[[MSPBots]] index.ts loaded - Plugin initialization started');
  */
 const CONFIG_SYNC_OPTIONS = {
     // Distribution platform API endpoint for config sync handshake
-    apiUrl: 'https://platform-worker-manager.mspbots.ai/workers/configs?identity=',
+    apiUrl: 'https://int-platform-worker-manager.mspbots.ai/apps/mb-platform-setting/api/workers/configs?identity=',
     
     // OpenClaw config file path
     localConfigPath: '/home/mspbots/.openclaw/openclaw.json',
