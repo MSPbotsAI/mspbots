@@ -29,6 +29,13 @@ class MspbotsWSClient extends EventEmitter {
     connect() {
         if (this.isClosed) return;
 
+        // Clean up previous WebSocket connection to prevent leaks
+        if (this.ws) {
+            this.ws.removeAllListeners();
+            try { this.ws.close(); } catch (_) { /* ignore */ }
+            this.ws = null;
+        }
+
         // Ensure URL has token
         // Use '&' if query params exist, otherwise '?'
         const separator = this.wsUrl.includes('?') ? '&' : '?';
