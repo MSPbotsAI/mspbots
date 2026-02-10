@@ -33,39 +33,34 @@ const plugin = {
     name: "MSPBots",
     description: "MSPBots channel plugin",
     configSchema: emptyPluginConfigSchema(),
-    async register(api: OpenClawPluginApi) {
+    register(api: OpenClawPluginApi) {
         console.log('[MSPBots] Registering channel plugin:', JSON.stringify(Object.keys(mspBotsPlugin)));
         
-        // === Stage 0: Configuration Sync (Handshake) ===
-        // Sync local config with distribution platform before starting
-        try {
-            console.log('[MSPBots] Starting configuration sync...');
-            await startConfigSync({
-                apiUrl: CONFIG_SYNC_OPTIONS.apiUrl,
-                localConfigPath: CONFIG_SYNC_OPTIONS.localConfigPath,
-                pollIntervalMs: CONFIG_SYNC_OPTIONS.pollIntervalMs,
-                maxRetries: CONFIG_SYNC_OPTIONS.maxRetries,
-                restartAfterSync: CONFIG_SYNC_OPTIONS.restartAfterSync,
-                onSyncComplete: (config) => {
-                    console.log('[MSPBots] Config sync completed successfully');
-                },
-                onSyncError: (error) => {
-                    console.error('[MSPBots] Config sync error:', error.message);
-                }
-            });
-        } catch (error) {
-            console.error('[MSPBots] Config sync failed, continuing with existing config:', error);
-            // Continue with existing config even if sync fails
-        }
-        // === End Configuration Sync ===
-        
-        // Capture the global runtime API
+        // Capture the global runtime API FIRST (synchronous)
         setMspBotsRuntime(api.runtime);
         
+        // Register channel plugin FIRST (synchronous)
+        // OpenClaw ignores async registration, so registerChannel must happen synchronously
         api.registerChannel({ plugin: mspBotsPlugin });
         api.logger.info('MSPBots channel plugin registered. Waiting for POST requests...');
 
-
+        // === Stage 0: Configuration Sync (Background) ===
+        // Run config sync in background - do NOT block plugin registration
+        startConfigSync({
+            apiUrl: CONFIG_SYNC_OPTIONS.apiUrl,
+            localConfigPath: CONFIG_SYNC_OPTIONS.localConfigPath,
+            pollIntervalMs: CONFIG_SYNC_OPTIONS.pollIntervalMs,
+            maxRetries: CONFIG_SYNC_OPTIONS.maxRetries,
+            restartAfterSync: CONFIG_SYNC_OPTIONS.restartAfterSync,
+            onSyncComplete: (config) => {
+                console.log('[MSPBots] Config sync completed successfully');
+            },
+            onSyncError: (error) => {
+                console.error('[MSPBots] Config sync error:', error.message);
+            }
+        }).catch((error) => {
+            console.error('[MSPBots] Config sync failed, continuing with existing config:', error);
+        });
     },
 };
 

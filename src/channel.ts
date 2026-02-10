@@ -69,11 +69,12 @@ export const mspBotsPlugin: ChannelPlugin<ResolvedMspBotsAccount> = {
             if (rooturl && !rooturl.startsWith("http") && !rooturl.startsWith("ws")) {
                 rooturl = `https://${rooturl}`;
             }
-
+            console.log(`[MSPBots] Resolved account rooturl`, rooturl);
             // If accesstoken is present, default to enabled unless explicitly disabled
             const hasToken = Boolean(acc.accesstoken?.trim());
             const enabled = acc.enabled ?? hasToken;
-
+            console.log(`[MSPBots] Resolved account acc`, JSON.stringify(acc));
+            
             return {
                 accountId,
                 name: acc.name,
@@ -158,7 +159,7 @@ export const mspBotsPlugin: ChannelPlugin<ResolvedMspBotsAccount> = {
     },
     gateway: {
         startAccount: async (ctx) => {
-            console.log(`[MSPBots] startAccount called for ${ctx.account.accountId}`);
+            console.log(`[MSPBots] startAccount called`);
             
             const account = ctx.account;
             const token = account.accesstoken?.trim();
