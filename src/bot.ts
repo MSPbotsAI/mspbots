@@ -103,6 +103,8 @@ export async function handleMspBotsMessage(
         CommandAuthorized: true,
         OriginatingChannel: "mspbots",
         OriginatingTo: mspBotsTo,
+        ThreadId: payload.threadId,
+        TaskId: payload.taskId,
     });
 
     // 5. Create Dispatcher (创建回复处理器)
