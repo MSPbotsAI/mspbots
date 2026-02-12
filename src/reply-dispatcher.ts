@@ -46,7 +46,7 @@ export function createMspBotsReplyDispatcher(params: CreateMspBotsReplyDispatche
                 const text = payload.text ?? "";
                 if (!text.trim()) return;
 
-                params.runtime.log?.(`[MSPBots] delivering reply: ${text.slice(0, 50)}...`);
+                params.runtime.log?.(`[MSPBots] delivering reply: threadId=${threadId} ${text.slice(0, 50)}...`);
 
                 await sendMessageMspBots({
                     text: text,
