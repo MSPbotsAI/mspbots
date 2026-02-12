@@ -20,11 +20,12 @@ export type CreateMspBotsReplyDispatcherParams = {
     mspBotsAppId?: string;
     taskId?: string;
     type?: string;
+    threadId?: string;
 };
 
 export function createMspBotsReplyDispatcher(params: CreateMspBotsReplyDispatcherParams) {
     const core = getMspBotsRuntime();
-    const { cfg, agentId, chatId, account, mspBotsAgentId, mspBotsAppId, taskId, type } = params;
+    const { cfg, agentId, chatId, account, mspBotsAgentId, mspBotsAppId, taskId, type, threadId } = params;
 
     const prefixContext = createReplyPrefixContext({
         cfg,
@@ -54,7 +55,8 @@ export function createMspBotsReplyDispatcher(params: CreateMspBotsReplyDispatche
                     mspBotsAgentId,
                     mspBotsAppId,
                     taskId,
-                    type: type
+                    type: type,
+                    threadId: threadId,
                 });
                 
             },
